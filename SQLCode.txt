@@ -1,0 +1,192 @@
+USE ClassManagementSystem;
+-- 1. Building
+CREATE TABLE Building (
+    building_ID INT PRIMARY KEY,
+    building_name VARCHAR(100) UNIQUE NOT NULL,
+    location VARCHAR(100)
+);
+
+
+-- 2. Department
+CREATE TABLE Department (
+    dept_ID INT PRIMARY KEY,
+    dept_name VARCHAR(100) UNIQUE NOT NULL,
+    building_ID INT NOT NULL,
+    FOREIGN KEY (building_ID) REFERENCES Building(building_ID)
+);
+
+
+-- 3. User 
+CREATE TABLE User (
+    user_ID INT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    username VARCHAR(50) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    email VARCHAR(100),
+    role ENUM('Admin','Secretary','Student') NOT NULL,
+    dept_ID INT NULL,         -- only used for Secretary
+    semester INT NULL,        -- only for Students
+    enroll_no INT UNIQUE NULL, -- only for Students
+    FOREIGN KEY (dept_ID) REFERENCES Department(dept_ID)
+);
+
+
+-- 4. Teacher
+CREATE TABLE Teacher (
+    teacher_ID INT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    teacher_code VARCHAR(50) UNIQUE NOT NULL,
+    dept_ID INT NOT NULL,
+    FOREIGN KEY (dept_ID) REFERENCES Department(dept_ID)
+);
+
+
+-- 5. Classroom
+CREATE TABLE Classroom (
+    room_ID INT PRIMARY KEY,
+    building_ID INT NOT NULL,
+    room_No VARCHAR(10) NOT NULL,
+    capacity INT CHECK (capacity >= 0),
+    FOREIGN KEY (building_ID) REFERENCES Building(building_ID),
+    UNIQUE(building_ID, room_No)
+);
+
+-- Equipment
+CREATE TABLE Equipment (
+    equipment_ID INT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    classroom_ID INT NOT NULL,
+    FOREIGN KEY (classroom_ID) REFERENCES Classroom(room_ID)
+);
+
+-- Blackout 
+CREATE TABLE Blackout (
+    blackout_ID INT PRIMARY KEY,
+    date DATE NOT NULL,
+    start_time TIME NOT NULL,
+    end_time TIME NOT NULL,
+    CHECK (start_time < end_time)
+);
+  -- Class
+CREATE TABLE Class (
+    class_ID INT PRIMARY KEY,
+    class_name VARCHAR(100) NOT NULL,
+    section_no INT NOT NULL,
+    dept_ID INT NOT NULL,
+    teacher_ID INT NOT NULL,
+    blackout_ID INT NOT NULL,   -- renamed from time_slot
+    date_slot DATE NOT NULL,
+    FOREIGN KEY (dept_ID) REFERENCES Department(dept_ID),
+    FOREIGN KEY (teacher_ID) REFERENCES Teacher(teacher_ID),
+    FOREIGN KEY (blackout_ID) REFERENCES Blackout(blackout_ID),
+    UNIQUE(dept_ID, class_name, section_no)
+);
+
+-- Assignment
+CREATE TABLE Assignment (
+    assign_ID INT PRIMARY KEY,
+    class_ID INT NOT NULL,
+    room_ID INT NOT NULL,
+    assigned_by INT NOT NULL,
+    FOREIGN KEY (class_ID) REFERENCES Class(class_ID),
+    FOREIGN KEY (room_ID) REFERENCES Classroom(room_ID),
+    FOREIGN KEY (assigned_by) REFERENCES User(user_ID)
+);
+
+DROP TABLE IF EXISTS Request;
+CREATE TABLE Request (
+    request_ID INT PRIMARY KEY,
+    class_ID INT NOT NULL,
+    dept_ID INT NOT NULL,
+    blackout_ID INT NOT NULL,
+    date_slot DATE NOT NULL,
+    submitted_by INT NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'pending',
+
+    FOREIGN KEY (class_ID) REFERENCES Class(class_ID),
+    FOREIGN KEY (dept_ID) REFERENCES Department(dept_ID),
+    FOREIGN KEY (submitted_by) REFERENCES User(user_ID),
+    FOREIGN KEY (blackout_ID) REFERENCES Blackout(blackout_ID)
+);
+
+
+-- Student_Class
+CREATE TABLE Student_Class (
+    student_ID INT NOT NULL,
+    class_ID INT NOT NULL,
+    PRIMARY KEY(student_ID, class_ID),
+    FOREIGN KEY (student_ID) REFERENCES User(user_ID),
+    FOREIGN KEY (class_ID) REFERENCES Class(class_ID)
+);
+
+-- Classroom_Blackout (renamed from Classroom_TimeSlot)
+CREATE TABLE Classroom_Blackout (
+    room_ID INT NOT NULL,
+    blackout_ID INT NOT NULL,
+    blackout BOOLEAN DEFAULT FALSE,
+    PRIMARY KEY(room_ID, blackout_ID),
+    FOREIGN KEY (room_ID) REFERENCES Classroom(room_ID),
+    FOREIGN KEY (blackout_ID) REFERENCES Blackout(blackout_ID)
+);
+
+-- Insert sample data
+
+INSERT INTO Request (request_ID, class_ID, dept_ID, blackout_ID, date_slot, submitted_by, status)
+VALUES
+(1, 300, 10, 900, '2025-01-10', 2, 'pending'),
+(2, 300, 10, 901, '2025-01-20', 2, 'approved'),
+(3, 300, 10, 900, '2025-01-15', 2, 'rejected');
+
+
+INSERT INTO Building VALUES 
+(1, 'Engineering Hall', 'North Campus'),
+(2, 'Science Center', 'South Campus');
+
+INSERT INTO Department VALUES
+(10, 'Computer Science', 1),
+(20, 'Physics', 2);
+
+INSERT INTO User VALUES
+(1, 'Alice Admin', 'aliceA', 'passA', 'alice@email.com', 'Admin', NULL, NULL, NULL),
+(2, 'Sarah Sec', 'sarahS', 'passS', 'sarah@email.com', 'Secretary', 10, NULL, NULL),
+(3, 'John Student', 'john123', 'passJ', 'john@email.com', 'Student', NULL, 3, 5001);
+
+INSERT INTO Teacher VALUES
+(101, 'Dr. Smith', 'teachPass', 'T101', 10),
+(102, 'Dr. Brown', 'teachPass', 'T102', 20);
+
+INSERT INTO Classroom VALUES
+(1001, 1, 'E101', 40),
+(1002, 2, 'S201', 60);
+
+INSERT INTO Equipment VALUES
+(500, 'Projector', 1001),
+(501, 'Whiteboard', 1002),
+(502, 'Smart TV', 1001);
+
+INSERT INTO Blackout VALUES
+(900, '2025-01-10', '08:00:00', '10:00:00'),
+(901, '2025-01-11', '10:00:00', '12:00:00');
+
+INSERT INTO Class VALUES
+(300, 'Database Systems', 1, 10, 101, 900, '2025-01-10');
+
+INSERT INTO Assignment VALUES
+(700, 300, 1001, 1);
+
+INSERT INTO Student_Class VALUES
+(3, 300);
+
+INSERT INTO Blackout VALUES
+(902, '2025-01-12', '09:00:00', '11:00:00'),
+(903, '2025-01-13', '13:00:00', '15:00:00');
+
+INSERT INTO Teacher VALUES
+(103, 'Dr. Johnson', 'teachPass', 'T103', 10),
+(104, 'Dr. Lee', 'teachPass', 'T104', 20),
+(105, 'Dr. Miller', 'teachPass', 'T105', 10);
+
+INSERT INTO Class VALUES
+(301, 'Operating Systems', 1, 10, 103, 902, '2025-01-12'),
+(302, 'Physics II', 1, 20, 104, 903, '2025-01-13');
